@@ -1,17 +1,15 @@
-# good-console
+# good-json-console
 
-Console broadcasting for Good process monitor
+JSON based console broadcasting for Good process monitor
 
-[![Build Status](https://travis-ci.org/hapijs/good-console.svg?branch=master)](http://travis-ci.org/hapijs/good-console)![Current Version](https://img.shields.io/npm/v/good-console.svg)
-
-Lead Maintainer: [Adam Bretz](https://github.com/arb)
+[![Build Status](https://travis-ci.org/sportngin/good-json-console.svg?branch=master)](http://travis-ci.org/sportngin/good-json-console)![Current Version](https://img.shields.io/npm/v/good-json-console.svg)
 
 ## Usage
 
-`good-console` is a [good](https://github.com/hapijs/good) reporter implementation to write [hapi](http://hapijs.com/) server events to the console.
+`good-json-console` is a [good](https://github.com/hapijs/good) reporter implementation to write [hapi](http://hapijs.com/) server events to the console.
 
-## `GoodConsole(events, [options])`
-Creates a new GoodConsole object with the following arguments:
+## `GoodJsonConsole(events, [options])`
+Creates a new GoodJsonConsole object with the following arguments:
 
 - `events` - an object of key value pairs.
 	- `key` - one of the supported [good events](https://github.com/hapijs/good) indicating the hapi event to subscribe to
@@ -20,8 +18,8 @@ Creates a new GoodConsole object with the following arguments:
 	- `format` - [MomentJS](http://momentjs.com/docs/#/displaying/format/) format string. Defaults to 'YYMMDD/HHmmss.SSS'.
 	- `utc` - boolean controlling Moment using [utc mode](http://momentjs.com/docs/#/parsing/utc/) or not. Defaults to `true`.
 
-## Good Console Methods
-### `goodconsole.init(stream, emitter, callback)`
+## Good JSON Console Methods
+### `goodjsonconsole.init(stream, emitter, callback)`
 Initializes the reporter with the following arguments:
 
 - `stream` - a Node readable stream that will be the source of data for this reporter. It is assumed that `stream` is in `objectMode`.
@@ -32,8 +30,8 @@ Initializes the reporter with the following arguments:
 
 Below are example outputs for the designated event type:
 
-- "ops" - 141225/093015.900, [ops, `event.tags`], memory: 10Mb, uptime (seconds): 1000, load: [ 1.650390625, 1.6162109375, 1.65234375 ]
-- "error" - 141225/093015.900, [error, `event.tags`], message: there was an error, stack: `eventData.stack`
-- "request" - 141225/093015.900, [request, `event.tags`], data: {"message":"you made a request to a resource"}
-- "log" - 141225/093015.900, [log, `event.tags`], data: you logged a message
-- "response" - 141223/164207.694, [response], localhost: post /data {"name":"adam"} 200 (150ms) response payload: {"foo":"bar","value":1}
+- "ops" - `{"timestamp":"150520/201400.273","tags":["ops"],"data":{"memory":"29Mb","uptime":"6s","load":[1.650390625,1.6162109375,1.65234375]}}`
+- "error" - `{"timestamp":"150520/201446.771","tags":["error"],"data":{"message":"there was an error","stack":"--stack trace--"}}`
+- "request" - `{"timestamp":"150520/201739.879","tags":["request"],"data":"you made a request to a resource"}`
+- "log" - `{"timestamp":"150520/201739.879","tags":["log"],"data":"you logged a message"}`
+- "response" - `{"timestamp":"150520/202020.863","tags":["response"],"data":{"instance":"localhost","method":"post","path":"/data","statusCode":200,"responseTime":150,"query":"{\"name\":\"adam\"}","responsePayload":"{\"foo\":\"bar\",\"value\":1}"}}`

@@ -6,7 +6,7 @@ var Hoek = require('hoek');
 var Lab = require('lab');
 var Moment = require('moment');
 var StandIn = require('stand-in');
-var GoodConsole = require('..');
+var GoodJsonConsole = require('..');
 
 
 // Declare internals
@@ -84,11 +84,11 @@ var after = lab.after;
 var describe = lab.describe;
 var it = lab.it;
 
-describe('GoodConsole', function () {
+describe('GoodJsonConsole', function () {
 
     it('returns a new object without "new"', function (done) {
 
-        var reporter = GoodConsole({ log: '*' });
+        var reporter = GoodJsonConsole({ log: '*' });
         expect(reporter._settings).to.exist();
 
         done();
@@ -96,7 +96,7 @@ describe('GoodConsole', function () {
 
     it('returns a new object with "new"', function (done) {
 
-        var reporter = new GoodConsole({ log: '*' });
+        var reporter = new GoodJsonConsole({ log: '*' });
         expect(reporter._settings).to.exist();
 
         done();
@@ -104,7 +104,7 @@ describe('GoodConsole', function () {
 
     it('throws an error if the incomming stream is not in objectMode', function (done) {
 
-        var reporter = GoodConsole({ log: '*' });
+        var reporter = GoodJsonConsole({ log: '*' });
         expect(reporter._settings).to.exist();
 
         var stream = new Stream.Readable();
@@ -123,15 +123,15 @@ describe('GoodConsole', function () {
 
             it('logs to the console for "response" events', function (done) {
 
-                var reporter = GoodConsole({ response: '*' });
+                var reporter = GoodJsonConsole({ response: '*' });
                 var now = Date.now();
                 var timeString = Moment.utc(now).format(internals.defaults.format);
 
                 StandIn.replace(process.stdout, 'write', function (stand, string, enc, callback) {
 
-                    if (string.indexOf(timeString) === 0) {
+                    if (string.indexOf(timeString) >= 0) {
                         stand.restore();
-                        expect(string).to.equal(timeString + ', [response], localhost: [1;33mpost[0m /data {"name":"adam"} [32m200[0m (150ms) response payload: {"foo":"bar","value":1}\n');
+                        expect(string).to.equal('{"timestamp":"' + timeString + '","tags":["response"],"data":{"instance":"localhost","method":"post","path":"/data","statusCode":200,"responseTime":150,"query":"{\\\"name\\\":\\\"adam\\\"}","responsePayload":"{\\\"foo\\\":\\\"bar\\\",\\\"value\\\":1}"}}\n');
                     }
                     else {
                         stand.original(string, enc, callback);
@@ -153,7 +153,7 @@ describe('GoodConsole', function () {
 
             it('logs to the console for "response" events without a query', function (done) {
 
-                var reporter = new GoodConsole({ response: '*' });
+                var reporter = new GoodJsonConsole({ response: '*' });
                 var now = Date.now();
                 var timeString = Moment.utc(now).format(internals.defaults.format);
                 var event = Hoek.clone(internals.response);
@@ -162,9 +162,41 @@ describe('GoodConsole', function () {
 
                 StandIn.replace(process.stdout, 'write', function (stand, string, enc, callback) {
 
-                    if (string.indexOf(timeString) === 0) {
+                    if (string.indexOf(timeString) >= 0) {
                         stand.restore();
-                        expect(string).to.equal(timeString + ', [response], localhost: [1;33mpost[0m /data  [32m200[0m (150ms) response payload: {"foo":"bar","value":1}\n');
+                        expect(string).to.equal('{"timestamp":"' + timeString + '","tags":["response"],"data":{"instance":"localhost","method":"post","path":"/data","statusCode":200,"responseTime":150,"responsePayload":"{\\\"foo\\\":\\\"bar\\\",\\\"value\\\":1}"}}\n');
+                    }
+                    else {
+                        stand.original(string, enc, callback);
+                    }
+                });
+
+                event.timestamp = now;
+
+                var s = internals.readStream(done);
+
+                reporter.init(s, null, function (err) {
+
+                    expect(err).to.not.exist();
+                    s.push(event);
+                    s.push(null);
+                });
+            });
+
+            it('logs to the console for "response" events without query when query is empty', function (done) {
+
+                var reporter = new GoodJsonConsole({ response: '*' });
+                var now = Date.now();
+                var timeString = Moment.utc(now).format(internals.defaults.format);
+                var event = Hoek.clone(internals.response);
+
+                event.query = {};
+
+                StandIn.replace(process.stdout, 'write', function (stand, string, enc, callback) {
+
+                    if (string.indexOf(timeString) >= 0) {
+                        stand.restore();
+                        expect(string).to.equal('{"timestamp":"' + timeString + '","tags":["response"],"data":{"instance":"localhost","method":"post","path":"/data","statusCode":200,"responseTime":150,"responsePayload":"{\\\"foo\\\":\\\"bar\\\",\\\"value\\\":1}"}}\n');
                     }
                     else {
                         stand.original(string, enc, callback);
@@ -185,7 +217,7 @@ describe('GoodConsole', function () {
 
             it('logs to the console for "response" events without a responsePayload', function (done) {
 
-                var reporter = new GoodConsole({ response: '*' });
+                var reporter = new GoodJsonConsole({ response: '*' });
                 var now = Date.now();
                 var timeString = Moment.utc(now).format(internals.defaults.format);
                 var event = Hoek.clone(internals.response);
@@ -194,9 +226,9 @@ describe('GoodConsole', function () {
 
                 StandIn.replace(process.stdout, 'write', function (stand, string, enc, callback) {
 
-                    if (string.indexOf(timeString) === 0) {
+                    if (string.indexOf(timeString) >= 0) {
                         stand.restore();
-                        expect(string).to.equal(timeString + ', [response], localhost: [1;33mpost[0m /data {"name":"adam"} [32m200[0m (150ms) \n');
+                        expect(string).to.equal('{"timestamp":"' + timeString + '","tags":["response"],"data":{"instance":"localhost","method":"post","path":"/data","statusCode":200,"responseTime":150,"query":"{\\\"name\\\":\\\"adam\\\"}"}}\n');
                     }
                     else {
                         stand.original(string, enc, callback);
@@ -215,49 +247,19 @@ describe('GoodConsole', function () {
                 });
             });
 
-            it('provides a default color for response methods', function (done) {
-
-                var reporter = new GoodConsole({ response: '*' });
-                var now = Date.now();
-                var timeString = Moment.utc(now).format(internals.defaults.format);
-                var event = Hoek.clone(internals.response);
-
-                StandIn.replace(process.stdout, 'write', function (stand, string, enc, callback) {
-
-                    if (string.indexOf(timeString) === 0) {
-                        stand.restore();
-                        expect(string).to.equal(timeString + ', [response], localhost: [1;34mhead[0m /data {"name":"adam"} [32m200[0m (150ms) response payload: {"foo":"bar","value":1}\n');
-                    }
-                    else {
-                        stand.original(string, enc, callback);
-                    }
-                });
-
-                event.timestamp = now;
-                event.method = 'head';
-
-                var s = internals.readStream(done);
-
-                reporter.init(s, null, function (err) {
-
-                    expect(err).to.not.exist();
-                    s.push(event);
-                    s.push(null);
-                });
-            });
 
             it('does not log a status code if there is not one attached', function (done) {
 
-                var reporter = new GoodConsole({ response: '*' });
+                var reporter = new GoodJsonConsole({ response: '*' });
                 var now = Date.now();
                 var timeString = Moment.utc(now).format(internals.defaults.format);
                 var event = Hoek.clone(internals.response);
 
                 StandIn.replace(process.stdout, 'write', function (stand, string, enc, callback) {
 
-                    if (string.indexOf(timeString) === 0) {
+                    if (string.indexOf(timeString) >= 0) {
                         stand.restore();
-                        expect(string).to.equal(timeString + ', [response], localhost: [1;33mpost[0m /data {"name":"adam"}  (150ms) response payload: {"foo":"bar","value":1}\n');
+                        expect(string).to.equal('{"timestamp":"' + timeString + '","tags":["response"],"data":{"instance":"localhost","method":"post","path":"/data","responseTime":150,"query":"{\\\"name\\\":\\\"adam\\\"}","responsePayload":"{\\\"foo\\\":\\\"bar\\\",\\\"value\\\":1}"}}\n');
                     }
                     else {
                         stand.original(string, enc, callback);
@@ -278,71 +280,20 @@ describe('GoodConsole', function () {
 
             });
 
-            it('uses different colors for different status codes', function (done) {
-
-                var counter = 1;
-                var reporter = new GoodConsole({ response: '*' });
-                var now = Date.now();
-                var timeString = Moment.utc(now).format(internals.defaults.format);
-                var colors = {
-                    1: 32,
-                    2: 32,
-                    3: 36,
-                    4: 33,
-                    5: 31
-                };
-
-                var write = StandIn.replace(process.stdout, 'write', function (stand, string, enc, callback) {
-
-                    if (string.indexOf(timeString) === 0) {
-
-                        var expected = Hoek.format('%s, [response], localhost: [1;33mpost[0m /data  [%sm%s[0m (150ms) \n', timeString, colors[counter], counter * 100);
-                        expect(string).to.equal(expected);
-
-                        counter++;
-                    }
-                    else {
-                        stand.original(string, enc, callback);
-                    }
-                });
-
-                var s = internals.readStream(function () {
-
-                    write.restore();
-                    done();
-                });
-
-                reporter.init(s, null, function (err) {
-
-                    expect(err).to.not.exist();
-
-                    for (var i = 1; i < 6; ++i) {
-                        var event = Hoek.clone(internals.response);
-                        event.statusCode = i * 100;
-                        event.timestamp = now;
-
-                        delete event.query;
-                        delete event.responsePayload;
-
-                        s.push(event);
-                    }
-                    s.push(null);
-                });
-            });
         });
 
         it('prints ops events', function (done) {
 
-            var reporter = new GoodConsole({ ops: '*' });
+            var reporter = new GoodJsonConsole({ ops: '*' });
             var now = Date.now();
             var timeString = Moment.utc(now).format(internals.defaults.format);
             var event = Hoek.clone(internals.ops);
 
             StandIn.replace(process.stdout, 'write', function (stand, string, enc, callback) {
 
-                if (string.indexOf(timeString) === 0) {
+                if (string.indexOf(timeString) >= 0) {
                     stand.restore();
-                    expect(string).to.equal(timeString + ', [ops], memory: 29Mb, uptime (seconds): 6, load: 1.650390625,1.6162109375,1.65234375\n');
+                    expect(string).to.equal('{"timestamp":"' + timeString + '","tags":["ops"],"data":{"memory":"29Mb","uptime":"6s","load":[1.650390625,1.6162109375,1.65234375]}}\n');
                 }
                 else {
                     stand.original(string, enc, callback);
@@ -363,7 +314,7 @@ describe('GoodConsole', function () {
 
         it('prints error events', function (done) {
 
-            var reporter = new GoodConsole({ error: '*' });
+            var reporter = new GoodJsonConsole({ error: '*' });
             var now = Date.now();
             var timeString = Moment.utc(now).format(internals.defaults.format);
             var event = {
@@ -376,9 +327,9 @@ describe('GoodConsole', function () {
 
             StandIn.replace(process.stdout, 'write', function (stand, string, enc, callback) {
 
-                if (string.indexOf(timeString) === 0) {
+                if (string.indexOf(timeString) >= 0) {
                     stand.restore();
-                    expect(string).to.equal(timeString + ', [error], message: test message stack: fake stack for testing\n');
+                    expect(string).to.equal('{"timestamp":"' + timeString + '","tags":["error"],"data":{"message":"test message","stack":"fake stack for testing"}}\n');
                 }
                 else {
                     stand.original(string, enc, callback);
@@ -399,15 +350,15 @@ describe('GoodConsole', function () {
 
         it('prints request events with string data', function (done) {
 
-            var reporter = new GoodConsole({ request: '*' });
+            var reporter = new GoodJsonConsole({ request: '*' });
             var now = Date.now();
             var timeString = Moment.utc(now).format(internals.defaults.format);
 
             StandIn.replace(process.stdout, 'write', function (stand, string, enc, callback) {
 
-                if (string.indexOf(timeString) === 0) {
+                if (string.indexOf(timeString) >= 0) {
                     stand.restore();
-                    expect(string).to.equal(timeString + ', [request,user,info], data: you made a request\n');
+                    expect(string).to.equal('{"timestamp":"' + timeString + '","tags":["request","user","info"],"data":"you made a request"}\n');
                 }
                 else {
                     stand.original(string, enc, callback);
@@ -428,15 +379,15 @@ describe('GoodConsole', function () {
 
         it('prints request events with object data', function (done) {
 
-            var reporter = new GoodConsole({ request: '*' });
+            var reporter = new GoodJsonConsole({ request: '*' });
             var now = Date.now();
             var timeString = Moment.utc(now).format(internals.defaults.format);
 
             StandIn.replace(process.stdout, 'write', function (stand, string, enc, callback) {
 
-                if (string.indexOf(timeString) === 0) {
+                if (string.indexOf(timeString) >= 0) {
                     stand.restore();
-                    expect(string).to.equal(timeString + ', [request,user,info], data: {"message":"you made a request to a resource"}\n');
+                    expect(string).to.equal('{"timestamp":"' + timeString + '","tags":["request","user","info"],"data":{"message":"you made a request to a resource"}}\n');
                 }
                 else {
                     stand.original(string, enc, callback);
@@ -458,7 +409,7 @@ describe('GoodConsole', function () {
 
         it('prints a generic message for unknown event types with "data" as an object', function (done) {
 
-            var reporter = new GoodConsole({ test: '*' });
+            var reporter = new GoodJsonConsole({ test: '*' });
             var now = Date.now();
             var timeString = Moment.utc(now).format(internals.defaults.format);
             var event = {
@@ -472,9 +423,9 @@ describe('GoodConsole', function () {
 
             StandIn.replace(process.stdout, 'write', function (stand, string, enc, callback) {
 
-                if (string.indexOf(timeString) === 0) {
+                if (string.indexOf(timeString) >= 0) {
                     stand.restore();
-                    expect(string).to.equal(timeString + ', [test,user], data: {"reason":"for testing"}\n');
+                    expect(string).to.equal('{"timestamp":"' + timeString + '","tags":["test","user"],"data":{"reason":"for testing"}}\n');
                 }
                 else {
                     stand.original(string, enc, callback);
@@ -493,7 +444,7 @@ describe('GoodConsole', function () {
 
         it('prints a generic message for unknown event types with "data" as a string', function (done) {
 
-            var reporter = new GoodConsole({ test: '*' });
+            var reporter = new GoodJsonConsole({ test: '*' });
             var now = Date.now();
             var timeString = Moment.utc(now).format(internals.defaults.format);
             var event = {
@@ -505,9 +456,9 @@ describe('GoodConsole', function () {
 
             StandIn.replace(process.stdout, 'write', function (stand, string, enc, callback) {
 
-                if (string.indexOf(timeString) === 0) {
+                if (string.indexOf(timeString) >= 0) {
                     stand.restore();
-                    expect(string).to.equal(timeString + ', [test,user], data: for testing\n');
+                    expect(string).to.equal('{"timestamp":"' + timeString + '","tags":["test","user"],"data":"for testing"}\n');
                 }
                 else {
                     stand.original(string, enc, callback);
@@ -526,7 +477,7 @@ describe('GoodConsole', function () {
 
         it('prints a generic message for unknown event types with no "data" attribute', function (done) {
 
-            var reporter = new GoodConsole({ test: '*' });
+            var reporter = new GoodJsonConsole({ test: '*' });
             var now = Date.now();
             var timeString = Moment.utc(now).format(internals.defaults.format);
             var event = {
@@ -537,9 +488,9 @@ describe('GoodConsole', function () {
 
             StandIn.replace(process.stdout, 'write', function (stand, string, enc, callback) {
 
-                if (string.indexOf(timeString) === 0) {
+                if (string.indexOf(timeString) >= 0) {
                     stand.restore();
-                    expect(string).to.equal(timeString + ', [test,user], data: (none)\n');
+                    expect(string).to.equal('{"timestamp":"' + timeString + '","tags":["test","user"]}\n');
                 }
                 else {
                     stand.original(string, enc, callback);
@@ -558,15 +509,15 @@ describe('GoodConsole', function () {
 
         it('prints log events with string data', function (done) {
 
-            var reporter = new GoodConsole({ log: '*' }, { format: 'DD-YY -- ZZ', utc: false });
+            var reporter = new GoodJsonConsole({ log: '*' }, { format: 'DD-YY -- ZZ', utc: false });
             var now = Date.now();
             var timeString = Moment(now).format('DD-YY -- ZZ');
 
             StandIn.replace(process.stdout, 'write', function (stand, string, enc, callback) {
 
-                if (string.indexOf(timeString) === 0) {
+                if (string.indexOf(timeString) >= 0) {
                     stand.restore();
-                    expect(string).to.equal(timeString + ', [log,info], data: this is a log\n');
+                    expect(string).to.equal('{"timestamp":"' + timeString + '","tags":["log","info"],"data":"this is a log"}\n');
                 }
                 else {
                     stand.original(string, enc, callback);
@@ -590,15 +541,15 @@ describe('GoodConsole', function () {
 
         it('prints log events with object data', function (done) {
 
-            var reporter = new GoodConsole({ log: '*' });
+            var reporter = new GoodJsonConsole({ log: '*' });
             var now = Date.now();
             var timeString = Moment.utc(now).format(internals.defaults.format);
 
             StandIn.replace(process.stdout, 'write', function (stand, string, enc, callback) {
 
-                if (string.indexOf(timeString) === 0) {
+                if (string.indexOf(timeString) >= 0) {
                     stand.restore();
-                    expect(string).to.equal(timeString + ', [log,info,high], data: {"message":"this is a log"}\n');
+                    expect(string).to.equal('{"timestamp":"' + timeString + '","tags":["log","info","high"],"data":{"message":"this is a log"}}\n');
                 }
                 else {
                     stand.original(string, enc, callback);
@@ -626,7 +577,7 @@ describe('GoodConsole', function () {
 
         it('formats the timestamp based on the supplied option', function (done) {
 
-            var reporter = new GoodConsole({ test: '*' }, { format: 'YYYY'});
+            var reporter = new GoodJsonConsole({ test: '*' }, { format: 'YYYY'});
             var now = Date.now();
             var timeString = Moment.utc(now).format('YYYY');
             var event = {
@@ -640,9 +591,9 @@ describe('GoodConsole', function () {
 
             StandIn.replace(process.stdout, 'write', function (stand, string, enc, callback) {
 
-                if (string.indexOf(timeString) === 0) {
+                if (string.indexOf(timeString) >= 0) {
                     stand.restore();
-                    expect(string).to.equal(timeString + ', [test,user], data: {"reason":"for testing"}\n');
+                    expect(string).to.equal('{"timestamp":"' + timeString + '","tags":["test","user"],"data":{"reason":"for testing"}}\n');
                 }
                 else {
                     stand.original(string, enc, callback);
@@ -661,7 +612,7 @@ describe('GoodConsole', function () {
 
         it('formats the timestamp based on the supplied option non-utc mode', function (done) {
 
-            var reporter = new GoodConsole({ test: '*' }, { format: 'YYYY - ZZ', utc: false });
+            var reporter = new GoodJsonConsole({ test: '*' }, { format: 'YYYY - ZZ', utc: false });
             var now = Date.now();
             var timeString = Moment(now).format('YYYY - ZZ');
             var event = {
@@ -675,9 +626,9 @@ describe('GoodConsole', function () {
 
             StandIn.replace(process.stdout, 'write', function (stand, string, enc, callback) {
 
-                if (string.indexOf(timeString) === 0) {
+                if (string.indexOf(timeString) >= 0) {
                     stand.restore();
-                    expect(string).to.equal(timeString + ', [test,user], data: {"reason":"for testing"}\n');
+                    expect(string).to.equal('{"timestamp":"' + timeString + '","tags":["test","user"],"data":{"reason":"for testing"}}\n');
                 }
                 else {
                     stand.original(string, enc, callback);
@@ -696,7 +647,7 @@ describe('GoodConsole', function () {
 
         it('uses the current time if the event does not have a timestamp property', function (done) {
 
-            var reporter = new GoodConsole({ test: '*' });
+            var reporter = new GoodJsonConsole({ test: '*' });
             var event = {
                 event: 'test',
                 data: {
@@ -709,7 +660,7 @@ describe('GoodConsole', function () {
 
                 if (string.indexOf('!!!') >= 0) {
                     stand.restore();
-                    expect(/\[test,user,!!!], data: {"reason":"for testing"}/.test(string)).to.be.true();
+                    expect(/"tags":\["test","user","!!!"],"data":{"reason":"for testing"}}/.test(string)).to.be.true();
                 }
                 else {
                     stand.original(string, enc, callback);
