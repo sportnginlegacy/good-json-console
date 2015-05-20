@@ -1,8 +1,8 @@
 {
-  "name": "good-console",
-  "version": "5.0.0",
+  "name": "good-json-console",
+  "version": "0.9.0",
   "repository": "git://github.com/hapijs/good-console",
-  "description": "Console broadcasting for Good process monitor",
+  "description": "JSON console broadcasting for Good process monitor",
   "main": "index.js",
   "scripts": {
     "test": "lab -t 100 -vLa code",
@@ -29,7 +29,7 @@
   "licenses": [
     {
       "type": "BSD",
-      "url": "http://github.com/hapijs/good-console/raw/master/LICENSE"
+      "url": "http://github.com/sportngin/good-json-console/raw/master/LICENSE"
     }
   ]
 }
