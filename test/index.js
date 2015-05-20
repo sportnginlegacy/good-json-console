@@ -183,6 +183,38 @@ describe('GoodJsonConsole', function () {
                 });
             });
 
+            it('logs to the console for "response" events without query when query is empty', function (done) {
+
+                var reporter = new GoodJsonConsole({ response: '*' });
+                var now = Date.now();
+                var timeString = Moment.utc(now).format(internals.defaults.format);
+                var event = Hoek.clone(internals.response);
+
+                event.query = {};
+
+                StandIn.replace(process.stdout, 'write', function (stand, string, enc, callback) {
+
+                    if (string.indexOf(timeString) >= 0) {
+                        stand.restore();
+                        expect(string).to.equal('{"timestamp":"' + timeString + '","tags":["response"],"data":{"instance":"localhost","method":"post","path":"/data","statusCode":200,"responseTime":150,"responsePayload":"{\\\"foo\\\":\\\"bar\\\",\\\"value\\\":1}"}}\n');
+                    }
+                    else {
+                        stand.original(string, enc, callback);
+                    }
+                });
+
+                event.timestamp = now;
+
+                var s = internals.readStream(done);
+
+                reporter.init(s, null, function (err) {
+
+                    expect(err).to.not.exist();
+                    s.push(event);
+                    s.push(null);
+                });
+            });
+
             it('logs to the console for "response" events without a responsePayload', function (done) {
 
                 var reporter = new GoodJsonConsole({ response: '*' });
