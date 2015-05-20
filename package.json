@@ -1,6 +1,6 @@
 {
   "name": "good-json-console",
-  "version": "0.9.0",
+  "version": "1.0.0",
   "repository": "git://github.com/sportngin/good-json-console",
   "description": "JSON console broadcasting for Good process monitor",
   "main": "index.js",
